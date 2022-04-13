@@ -21,13 +21,13 @@ type IConsole =
     abstract ReadLn : unit -> string
     abstract WriteLn : string -> unit
 
-let console = {
+let defaultConsole = {
     new IConsole with
         member _.ReadLn() = Console.ReadLine()
         member _.WriteLn str = printfn $"%s{str}"
 }
 
-let logger = {
+let defaultLogger = {
     new ILogger with
         member _.Debug(s) = printfn $"%s{s}"
         member _.Info(s) = printfn $"%s{s}"
@@ -61,6 +61,10 @@ module Reader =
             let x = run env reader
             run env (f x)
         Reader newAction
+        
+    /// Transform a Reader's environment from subtype to supertype.
+    let withEnv (f:'superEnv->'subEnv) reader =
+        Reader (fun superEnv -> (run (f superEnv) reader))
 
 type ReaderBuilder() =
     member _.Return(x) = Reader (fun _ -> x)
@@ -87,7 +91,14 @@ module V1_LoggingAsFirstParameter =
         logger.Debug "compareTwoStrings: Finished"
         result        
 
-    let result = compareTwoStrings logger "b" "b"
+    let result = compareTwoStrings defaultLogger "b" "b"
+
+(*
+    // fsi:
+    open V1_LoggingAsFirstParameter
+    compareTwoStrings defaultLogger "b" "b"
+*)
+   
 
 // Version 2: inject logger as last parameter    
 module V2_LoggingAsLastParameter =
@@ -106,8 +117,14 @@ module V2_LoggingAsLastParameter =
         logger.Debug "compareTwoStrings: Finished"
         result        
 
-    let result' = compareTwoStrings "b" "b" logger
+    let result = compareTwoStrings "b" "b" defaultLogger
 
+(*
+    // fsi:
+    open V2_LoggingAsLastParameter
+    compareTwoStrings "b" "b" defaultLogger
+*)
+  
 // Version 3: return a function (!)
 module V3_ReturningAFunction =
     let compareTwoStrings str1 str2 =
@@ -127,8 +144,14 @@ module V3_ReturningAFunction =
             result        
 
     let resultFcn : (ILogger -> ComparisonResult) = compareTwoStrings "b" "b"
-    let resultA = resultFcn logger
-    let resultB = (compareTwoStrings "b" "b") logger
+    let resultA = resultFcn defaultLogger
+    let resultB = (compareTwoStrings "b" "b") defaultLogger
+
+(*
+    // fsi:
+    open V3_ReturningAFunction
+    (compareTwoStrings "b" "b") defaultLogger
+*)
 
 // Version 4: Introducing the Reader Monad
 module V4_ReaderMonad =
@@ -151,30 +174,34 @@ module V4_ReaderMonad =
         }
 
     let readerTmp = compareTwoStrings "a" "b"
-    
-    (*
-    Test:
 
-    Reader.run logger readerTmp
+(*
+    // fsi:
+    open V4_ReaderMonad
+
+    Reader.run defaultLogger readerTmp
     Reader.run happyLogger readerTmp
+*)    
 
-    *)    
-
-    // readFromConsole
+// Version 5: Approach 1: Use inferred inheritance
+// "The easiest way to indicate the inheritance constraint in F# is to
+// use the `#` symbol in front of a type annotation", f.ex. `#IConsole`.
+module V5_ReaderMonad =
+    
+    /// NOTE: `console.ReadLn()` does not seem to work in the REPL
     let readFromConsole() =
         reader {
-            let! (console : IConsole) = Reader.ask
+            let! (console:#IConsole) = Reader.ask
+            let! (logger:#ILogger) = Reader.ask     // OK now!
             console.WriteLn "Enter the first value"
-            let str1 = console.ReadLn
+            let str1 = "a" //console.ReadLn()
             console.WriteLn "Enter the second value"
-            let str2 = console.ReadLn
+            let str2 = "b" //console.ReadLn()
+            logger.Info $"Done reading from console: Found values %A{str1} and %A{str2}"
             
             return str1, str2
         }
-
-
-// Version 5:
-module V5_ReaderMonad =
+        
     let compareTwoStrings str1 str2 =
         reader {
             let! (logger:#ILogger) = Reader.ask
@@ -192,19 +219,6 @@ module V5_ReaderMonad =
             logger.Debug "compareTwoStrings: Finished"
             return result
         }
-    
-    let readFromConsole() =
-        reader {
-            let! (console:#IConsole) = Reader.ask
-            let! (logger:#ILogger) = Reader.ask     // OK now!
-            console.WriteLn "Enter the first value"
-            let str1 = "a" //console.ReadLn()
-            console.WriteLn "Enter the second value"
-            let str2 = "b" //console.ReadLn()
-            logger.Info $"Done reading from console: Found values %A{str1} and %A{str2}"
-            
-            return str1, str2
-        }
         
     let writeToConsole (result:ComparisonResult) =
         reader {
@@ -217,7 +231,7 @@ module V5_ReaderMonad =
                 console.WriteLn "The first value is smaller"
             | Equal ->
                 console.WriteLn "The values are equal"
-    }
+        }
         
     type IServices =
         inherit ILogger
@@ -234,13 +248,97 @@ module V5_ReaderMonad =
         {
             new IServices
             interface IConsole with
-                member _.ReadLn() = console.ReadLn()
-                member _.WriteLn str = console.WriteLn str
+                member _.ReadLn() = defaultConsole.ReadLn()
+                member _.WriteLn str = defaultConsole.WriteLn str
             interface ILogger with
-                member _.Debug str = logger.Debug str
-                member _.Info str = logger.Info str
-                member _.Error str = logger.Error str
+                member _.Debug str = defaultLogger.Debug str
+                member _.Info str = defaultLogger.Info str
+                member _.Error str = defaultLogger.Error str
+        }
+
+(*
+    // fsi:
+    open V5_ReaderMonad
+
+    Reader.run services program
+*)        
+
+// Version 6: Approach 2: Mapping the environment
+// Requires `withEnv` function in Reader to map from supertype to subtype.
+module V6_ReaderMonad =
+    let readFromConsole() =
+        reader {
+            let! (console:IConsole), (logger:ILogger) = Reader.ask
+            console.WriteLn "Enter the first value"
+            let str1 = "a" //console.ReadLn()
+            console.WriteLn "Enter the second value"
+            let str2 = "b" //console.ReadLn()
+            logger.Info $"Done reading from console: Found values %A{str1} and %A{str2}"
+            
+            return str1, str2
         }
     
-    Reader.run services program 
-                    
+    let compareTwoStrings str1 str2 =
+        reader {
+            let! (logger:ILogger) = Reader.ask
+            logger.Debug $"compareTwoStrings: Starting to compare %A{str1} and %A{str2}"
+
+            let result =
+                if str1 > str2 then
+                    Bigger
+                else if str1 < str2 then
+                    Smaller
+                else
+                    Equal
+
+            logger.Info $"compareTwoStrings: result=%A{result}"
+            logger.Debug "compareTwoStrings: Finished"
+            return result
+        }    
+    
+    let writeToConsole (result:ComparisonResult) =
+        reader {
+            let! (console:IConsole) = Reader.ask
+
+            match result with
+            | Bigger ->
+                console.WriteLn "The first value is bigger"
+            | Smaller ->
+                console.WriteLn "The first value is smaller"
+            | Equal ->
+                console.WriteLn "The values are equal"
+        }
+        
+    type IServices = {
+        Logger : ILogger
+        Console : IConsole
+    }
+        
+    let program =
+        reader {
+            // helper functions to transform the environment
+            let getConsole services = services.Console
+            let getLogger services = services.Logger
+            let getConsoleAndLogger services = services.Console,services.Logger // a tuple
+
+            let! str1, str2 =
+                readFromConsole()
+                |> Reader.withEnv getConsoleAndLogger
+            let! result =
+                compareTwoStrings str1 str2
+                |> Reader.withEnv getLogger
+            do! writeToConsole result
+                |> Reader.withEnv getConsole
+        }
+        
+    let services = {
+        Console = defaultConsole
+        Logger = defaultLogger
+    }
+ 
+(*
+    // fsi:
+    open V6_ReaderMonad
+
+    Reader.run services program
+*)        
