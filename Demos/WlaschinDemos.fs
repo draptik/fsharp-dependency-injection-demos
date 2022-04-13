@@ -143,5 +143,17 @@ let compareTwoStrings''' str1 str2 =
 
 let readerTmp = compareTwoStrings''' "a" "b"
 
-//Reader.run logger readerTmp
+let happyLogger = {
+    new ILogger with
+        member this.Debug(s) = printfn $"🤔🤔🤔 %s{s}"
+        member this.Info(s) = printfn $"😀😀😀 %s{s}"
+        member this.Error(s) = printfn $"😡😡😡 %s{s}"
+}
 
+(*
+Test:
+
+Reader.run logger readerTmp
+Reader.run happyLogger readerTmp
+
+*)    
