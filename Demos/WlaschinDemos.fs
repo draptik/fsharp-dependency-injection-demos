@@ -23,23 +23,52 @@ type IConsole =
 
 let console = {
     new IConsole with
-        member this.ReadLn() = Console.ReadLine()
-        member this.WriteLn str = printfn $"%s{str}"
+        member _.ReadLn() = Console.ReadLine()
+        member _.WriteLn str = printfn $"%s{str}"
 }
 
 let logger = {
     new ILogger with
-        member this.Debug(s) = printfn $"%s{s}"
-        member this.Info(s) = printfn $"%s{s}"
-        member this.Error(s) = printfn $"%s{s}"
+        member _.Debug(s) = printfn $"%s{s}"
+        member _.Info(s) = printfn $"%s{s}"
+        member _.Error(s) = printfn $"%s{s}"
 }
 
 let happyLogger = {
         new ILogger with
-            member this.Debug(s) = printfn $"🤔🤔🤔 %s{s}"
-            member this.Info(s) = printfn $"😀😀😀 %s{s}"
-            member this.Error(s) = printfn $"😡😡😡 %s{s}"
+            member _.Debug(s) = printfn $"🤔🤔🤔 %s{s}"
+            member _.Info(s) = printfn $"😀😀😀 %s{s}"
+            member _.Error(s) = printfn $"😡😡😡 %s{s}"
 }
+
+type Reader<'env,'a> = Reader of action : ('env -> 'a)
+
+module Reader =
+    /// Run a Reader with a given environment
+    let run env (Reader action)  =
+        action env  // simply call the inner function
+
+    /// Create a Reader which returns the environment itself
+    let ask = Reader id
+
+    /// Map a function over a Reader
+    let map f reader =
+        Reader (fun env -> f (run env reader))
+
+    /// flatMap a function over a Reader
+    let bind f reader =
+        let newAction env =
+            let x = run env reader
+            run env (f x)
+        Reader newAction
+
+type ReaderBuilder() =
+    member _.Return(x) = Reader (fun _ -> x)
+    member _.Bind(x,f) = Reader.bind f x
+    member _.Zero() = Reader (fun _ -> ())
+
+// the builder instance
+let reader = ReaderBuilder()
 
 // Version 1: inject logger as 1st parameter
 module V1_LoggingAsFirstParameter =
@@ -103,35 +132,6 @@ module V3_ReturningAFunction =
 
 // Version 4: Introducing the Reader Monad
 module V4_ReaderMonad =
-    type Reader<'env,'a> = Reader of action : ('env -> 'a)
-
-    module Reader =
-        /// Run a Reader with a given environment
-        let run env (Reader action)  =
-            action env  // simply call the inner function
-
-        /// Create a Reader which returns the environment itself
-        let ask = Reader id
-
-        /// Map a function over a Reader
-        let map f reader =
-            Reader (fun env -> f (run env reader))
-
-        /// flatMap a function over a Reader
-        let bind f reader =
-            let newAction env =
-                let x = run env reader
-                run env (f x)
-            Reader newAction
-
-    type ReaderBuilder() =
-        member _.Return(x) = Reader (fun _ -> x)
-        member _.Bind(x,f) = Reader.bind f x
-        member _.Zero() = Reader (fun _ -> ())
-
-    // the builder instance
-    let reader = ReaderBuilder()
-
     let compareTwoStrings str1 str2 =
         reader {
             let! (logger:ILogger) = Reader.ask
@@ -151,6 +151,7 @@ module V4_ReaderMonad =
         }
 
     let readerTmp = compareTwoStrings "a" "b"
+    
     (*
     Test:
 
@@ -158,3 +159,88 @@ module V4_ReaderMonad =
     Reader.run happyLogger readerTmp
 
     *)    
+
+    // readFromConsole
+    let readFromConsole() =
+        reader {
+            let! (console : IConsole) = Reader.ask
+            console.WriteLn "Enter the first value"
+            let str1 = console.ReadLn
+            console.WriteLn "Enter the second value"
+            let str2 = console.ReadLn
+            
+            return str1, str2
+        }
+
+
+// Version 5:
+module V5_ReaderMonad =
+    let compareTwoStrings str1 str2 =
+        reader {
+            let! (logger:#ILogger) = Reader.ask
+            logger.Debug $"compareTwoStrings: Starting to compare %A{str1} and %A{str2}"
+
+            let result =
+                if str1 > str2 then
+                    Bigger
+                else if str1 < str2 then
+                    Smaller
+                else
+                    Equal
+
+            logger.Info $"compareTwoStrings: result=%A{result}"
+            logger.Debug "compareTwoStrings: Finished"
+            return result
+        }
+    
+    let readFromConsole() =
+        reader {
+            let! (console:#IConsole) = Reader.ask
+            let! (logger:#ILogger) = Reader.ask     // OK now!
+            console.WriteLn "Enter the first value"
+            let str1 = "a" //console.ReadLn()
+            console.WriteLn "Enter the second value"
+            let str2 = "b" //console.ReadLn()
+            logger.Info $"Done reading from console: Found values %A{str1} and %A{str2}"
+            
+            return str1, str2
+        }
+        
+    let writeToConsole (result:ComparisonResult) =
+        reader {
+            let! (console:#IConsole) = Reader.ask
+
+            match result with
+            | Bigger ->
+                console.WriteLn "The first value is bigger"
+            | Smaller ->
+                console.WriteLn "The first value is smaller"
+            | Equal ->
+                console.WriteLn "The values are equal"
+    }
+        
+    type IServices =
+        inherit ILogger
+        inherit IConsole
+    
+    let program : Reader<IServices,_> =
+        reader {
+            let! str1, str2 = readFromConsole()
+            let! result = compareTwoStrings str1 str2
+            do! writeToConsole result
+        }
+        
+    let services =
+        {
+            new IServices
+            interface IConsole with
+                member _.ReadLn() = console.ReadLn()
+                member _.WriteLn str = console.WriteLn str
+            interface ILogger with
+                member _.Debug str = logger.Debug str
+                member _.Info str = logger.Info str
+                member _.Error str = logger.Error str
+        }
+    
+    Reader.run services program 
+                    
