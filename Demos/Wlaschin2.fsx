@@ -17,9 +17,9 @@ type ILogger =
     abstract Error : string -> unit 
 
 let defaultLogger = {new ILogger with
-    member __.Debug str = printfn "DEBUG %s" str
-    member __.Info str = printfn "INFO %s" str
-    member __.Error str = printfn "ERROR %s" str
+    member _.Debug str = printfn $"DEBUG %s{str}"
+    member _.Info str = printfn $"INFO %s{str}"
+    member _.Error str = printfn $"ERROR %s{str}"
     }
 
 type IConsole = 
@@ -27,8 +27,8 @@ type IConsole =
     abstract WriteLn : string -> unit 
 
 let defaultConsole = {new IConsole with
-    member __.ReadLn() = Console.ReadLine()
-    member __.WriteLn str = printfn "%s" str
+    member _.ReadLn() = Console.ReadLine()
+    member _.WriteLn str = printfn $"%s{str}"
     }
 
 type ComparisonResult =
@@ -69,9 +69,9 @@ module Reader =
 
 
 type ReaderBuilder() =
-    member __.Return(x) = Reader (fun _ -> x)
-    member __.Bind(x,f) = Reader.bind f x
-    member __.Zero() = Reader (fun _ -> ())
+    member _.Return(x) = Reader (fun _ -> x)
+    member _.Bind(x,f) = Reader.bind f x
+    member _.Zero() = Reader (fun _ -> ())
 
 // the builder instance
 let reader = ReaderBuilder()
@@ -90,7 +90,7 @@ module FPInjection_ReaderMonad =
                 else
                     Equal
 
-            logger.Info (sprintf "compareTwoStrings: result=%A" result)
+            logger.Info $"compareTwoStrings: result=%A{result}"
             logger.Debug "compareTwoStrings: Finished"
             result
         |> Reader // <------------------ NEW!!!
@@ -111,7 +111,7 @@ module FPInjection_ReaderComputationExpression =
                 else
                     Equal
 
-            logger.Info (sprintf "compareTwoStrings: result=%A" result)
+            logger.Info $"compareTwoStrings: result=%A{result}"
             logger.Debug "compareTwoStrings: Finished"
             return result 
             }
@@ -165,7 +165,7 @@ module ReaderComposition_v1 =
                 else
                     Equal
 
-            logger.Info (sprintf "compareTwoStrings: result=%A" result)
+            logger.Info $"compareTwoStrings: result=%A{result}"
             logger.Debug "compareTwoStrings: Finished"
             return result 
             }
@@ -198,12 +198,12 @@ module ReaderComposition_v1 =
     let services = 
         { new IServices 
           interface IConsole with 
-            member __.ReadLn() = defaultConsole.ReadLn()
-            member __.WriteLn str = defaultConsole.WriteLn str 
+            member _.ReadLn() = defaultConsole.ReadLn()
+            member _.WriteLn str = defaultConsole.WriteLn str 
           interface ILogger with
-            member __.Debug str = defaultLogger.Debug str
-            member __.Info str = defaultLogger.Info str
-            member __.Error str = defaultLogger.Error str
+            member _.Debug str = defaultLogger.Debug str
+            member _.Info str = defaultLogger.Info str
+            member _.Error str = defaultLogger.Error str
         }
 
 // test
@@ -247,7 +247,7 @@ module ReaderComposition_v2 =
                 else
                     Equal
 
-            logger.Info (sprintf "compareTwoStrings: result=%A" result)
+            logger.Info $"compareTwoStrings: result=%A{result}"
             logger.Debug "compareTwoStrings: Finished"
             return result 
             }
