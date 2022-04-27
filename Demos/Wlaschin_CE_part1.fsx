@@ -20,6 +20,14 @@ type TraceBuilder() =
         printfn "Zero"
         None
         
+    member _.Yield(x) =
+        printfn $"Yield an unwrapped %A{x} as an option"
+        Some x
+    
+    member _.YieldFrom(m) =
+        printfn $"Yield an option (%A{m}) directly"
+        m
+    
 let trace = TraceBuilder()
 
 trace {
@@ -60,3 +68,15 @@ trace {
 trace {
     printfn "hello world"
 } |> printfn "Result for empty: %A"
+
+// Introducing `Yield`
+
+// Doesn't compile unless Yield is implemented:
+trace {
+    yield 1
+} |> printfn "Result for yield: %A"
+
+// Doesn't compile unless YieldFrom is implemented:
+trace {
+    yield! Some 1
+} |> printfn "Result for yield!: %A"
