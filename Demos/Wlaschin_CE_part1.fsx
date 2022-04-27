@@ -1,4 +1,6 @@
 // https://fsharpforfunandprofit.com/posts/computation-expressions-builder-part1/
+open System
+
 type TraceBuilder() =
     member _.Bind(m, f) =
         match m with
@@ -80,3 +82,40 @@ trace {
 trace {
     yield! Some 1
 } |> printfn "Result for yield!: %A"
+
+// Revisiting `For`
+//
+type ListBuilder() =
+    member this.Bind(m, f) =
+        m |> List.collect f
+        
+    member this.Zero() =
+        printfn "Zero"
+        []
+    
+    member this.Return(x) =
+        printfn $"Return a unwrapped %A{x} as a list"
+        [x]
+    
+    member this.For(m, f) =
+        printfn $"For %A{m}"
+        this.Bind(m, f)
+        
+    member this.Yield(x) =
+        printfn $"Yield an unwrapped %A{x} as a list"
+        [x]
+  
+
+let listBuilder = ListBuilder()
+
+listBuilder {
+    let! x = [1..3]
+    let! y = [10;20;30]
+    return x + y
+} |> printfn "Result: %A"
+
+listBuilder {
+    for x in [1..3] do
+    for y in [10;20;30] do
+    return x + y
+} |> printfn "Result: %A"
