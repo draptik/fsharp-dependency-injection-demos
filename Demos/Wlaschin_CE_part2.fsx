@@ -129,3 +129,13 @@ listBuilder {
         for j in ["hat"; "tie"] do
             yield! [i + " " + j; "-"]
 } |> printfn "Result for yield then yield: %A"
+
+// Order of processing for `Combine`
+
+
+listBuilder {
+    yield 1
+    yield 2
+    yield 3
+    yield 4
+} |> printfn "Result for yield four times: %A"
