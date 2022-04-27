@@ -37,3 +37,11 @@ trace {
     let! y = Some 1
     return x + y
     } |> printfn "Result 4: %A"
+
+// Introducing `do!`
+trace {
+    do! Some (printfn "...expression that returns unit")
+    do! Some (printfn "...another expression that returns unit")
+    let! x = Some (1)
+    return x
+} |> printfn "Result from do: %A"
