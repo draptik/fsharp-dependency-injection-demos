@@ -9,6 +9,7 @@
     <Compile Include="WlaschinDemos.fs" />
     <None Include="Wlaschin2.fsx" />
     <None Include="Wlaschin_CE_Examples.fsx" />
+    <None Include="Wlaschin_CE_part1.fsx" />
   </ItemGroup>
 
 </Project>
