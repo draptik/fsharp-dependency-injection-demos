@@ -18,4 +18,22 @@ type TraceBuilder() =
         
 let trace = TraceBuilder()
 
-        
+trace {
+    return 1
+    } |> printfn "Result 1: %A"
+
+trace {
+    return! Some 2
+    } |> printfn "Result 2: %A"
+
+trace {
+    let! x = Some 1
+    let! y = Some 2
+    return x + y
+    } |> printfn "Result 3: %A"
+
+trace {
+    let! x = None
+    let! y = Some 1
+    return x + y
+    } |> printfn "Result 4: %A"
