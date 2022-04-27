@@ -16,6 +16,10 @@ type TraceBuilder() =
         printfn $"Returning an option (%A{m}) directly"
         m
         
+    member _.Zero() =
+        printfn "Zero"
+        None
+        
 let trace = TraceBuilder()
 
 trace {
@@ -45,3 +49,14 @@ trace {
     let! x = Some (1)
     return x
 } |> printfn "Result from do: %A"
+
+// Introducing `Zero`
+
+// Doesn't compile:
+//trace {
+//} |> printfn "Result for empty: %A"
+
+// Doesn't compile unless Zero is implemented:
+trace {
+    printfn "hello world"
+} |> printfn "Result for empty: %A"
