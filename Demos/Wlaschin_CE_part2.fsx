@@ -79,4 +79,53 @@ trace {
     return 2
 } |> printfn "Result for yield then yield: %A"
 
+
+
+// Using Combine for sequence generation
+
+type ListBuilder() =
+    member this.Bind(m, f) =
+        m |> List.collect f
+        
+    member this.Zero() =
+        printfn "Zero"
+        []
+        
+    member this.Yield(x) =
+        printfn $"Yield an unwrapped %A{x} as a list"
+        [x]
+        
+    member this.YieldFrom(m) =
+        printfn $"Yield a list (%A{m}) directly"
+        m
     
+    member this.For(m, f) =
+        printfn $"For %A{m}"
+        this.Bind(m, f)
+        
+    member this.Combine(a, b) =
+        printfn $"Combining %A{a} and %A{b}"
+        List.concat [a;b]
+        
+    member this.Delay(f) =
+        printfn "Delay"
+        f()
+        
+let listBuilder = ListBuilder()        
+
+listBuilder {
+    yield 1
+    yield 2
+} |> printfn "Result for yield then yield: %A"
+
+listBuilder {
+    yield 1
+    yield! [2;3]
+} |> printfn "Result for yield then yield: %A"
+
+listBuilder {
+    for i in ["red"; "blue"] do
+        yield i
+        for j in ["hat"; "tie"] do
+            yield! [i + " " + j; "-"]
+} |> printfn "Result for yield then yield: %A"
