@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="WlaschinDemos.fs" />
     <None Include="Wlaschin2.fsx" />
+    <None Include="Wlaschin_CE_Examples.fsx" />
   </ItemGroup>
 
 </Project>
