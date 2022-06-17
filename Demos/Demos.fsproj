@@ -11,6 +11,7 @@
     <None Include="Wlaschin_CE_Examples.fsx" />
     <None Include="Wlaschin_CE_part1.fsx" />
     <None Include="Wlaschin_CE_part2.fsx" />
+    <None Include="Wlaschin_CE_part3.fsx" />
   </ItemGroup>
 
 </Project>
